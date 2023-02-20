@@ -26,6 +26,9 @@ tel$day_of_week <- as.factor(tel$day_of_week)
 tel$poutcome <- as.factor(tel$poutcome)
 
 tel$X <- NULL
+tele$duration <- NULL
+tele$pdaysdummy <- ifelse(tele$pdays == 999, 0, 1)
+tele$pdays <- NULL
 tel$y <- ifelse(tel$y == "yes", 1, 0)
 tel$y <- as.factor(tel$y)
 
@@ -37,7 +40,7 @@ summary(tel)
 
 ```{r}
 set.seed(12345)
-test_set <- sample(1:nrow(tel), .2 * nrow(tel))
+test_set <- sample(1:nrow(tel), .2*nrow(tel)) 
 
 tel_train <- tel[-test_set, ]
 tel_test <- tel[test_set,]
@@ -46,9 +49,20 @@ tel_test <- tel[test_set,]
 ### Logistic Regression Model
 
 ```{r}
-telmodel <- glm(y ~ ., data = tel_train, family = "binomial")
-summary(telmodel)
+logisticmodel <- glm(y ~ ., data = tel_train, family = "binomial")
+summary(logisticmodel)
 ```
+
+```{r}
+logisticprediction <- predict(logisticmodel, tel_test)
+
+library(gmodels)
+library(caret)
+logisticdecision <- ifelse(logisticprediction >= .5, 1, 0)
+CrossTable(logisticdecision, tel_test$y)
+confusionMatrix(as.factor(logisticdecision), as.factor(tel_test$y))
+```
+
 
 ### Normalize Data
 
@@ -67,29 +81,21 @@ summary(tel_n)
 
 ```{r}
 set.seed(12345)
-test_set <- sample(1:nrow(tel_n), .2 * nrow(tel_n))
+test_set <- sample(1:nrow(tel_n), .2*nrow(tel_n)) 
 
 tel_train <- tel_n[-test_set, ]
 tel_test <- tel_n[test_set,]
-
-#test_label <- tel_test$y1
-#train_label <- tel_train$y1
-
-#tel_test$y1 <- NULL
-#tel_train$y1 <- NULL
 ```
 
 ### KNN Model
 
 ```{r}
 library(class)
-telprediction <- knn(tel_train, tel_test, cl = tel_train$y1, k = 5)
+knnprediction <- knn(tel_train, tel_test, cl = tel_train$y1, k = 5)
 
-library(gmodels)
-CrossTable(telprediction, tel_test$y1)
 
-library(caret)
-confusionMatrix(as.factor(telprediction), as.factor(tel_test$y1))
+CrossTable(knnprediction, tel_test$y1)
+confusionMatrix(as.factor(knnprediction), as.factor(tel_test$y1))
 ```
 
 ### ANN Model
@@ -102,12 +108,21 @@ plot(annmodel)
 ```
 
 ```{r}
-telprediction <- predict(annmodel, tel_test)
-decision <- ifelse(telprediction >= .5, 1, 0)
-CrossTable(decision, tel_test$y1)
+annprediction <- predict(annmodel, tel_test)
+anndecision <- ifelse(annprediction >= .5, 1, 0)
+CrossTable(anndecision, tel_test$y1)
 
-confusionMatrix(as.factor(decision), as.factor(tel_test$y1))
+confusionMatrix(as.factor(anndecision), as.factor(tel_test$y1))
 ```
 
 ### Combined Model 
+
+```{r}
+combined <- as.factor(ifelse(logisticdecision == 1 & knnprediction == 1, 1, 
+                             ifelse(logisticdecision == 1 & anndecision == 1, 1, 
+                                    ifelse(knnprediction == 1 & anndecision == 1, 1, 0))))
+
+CrossTable(combined, tel_test$y1)
+confusionMatrix(as.factor(combined), as.factor(tel_test$y1))
+```
 
